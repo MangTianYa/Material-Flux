@@ -26,7 +26,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.anomaly.currency.data.Currencies
 import com.anomaly.currency.data.Currency
+import com.anomaly.currency.data.Provenance
 import com.anomaly.currency.data.Region
 import com.anomaly.currency.ui.components.AppIcons
 import com.anomaly.currency.ui.components.CurrencyAvatar
@@ -61,10 +61,10 @@ import com.anomaly.currency.util.Money
 /**
  * Full-screen currency picker.
  *
- * Layout is a single [LazyColumn] with three logical zones:
- *  1. A sticky search field in the top bar.
- *  2. A horizontal region filter (全部 / 亚洲 / 欧洲 / …).
- *  3. Sticky region headers over the currency rows, with 常用 pinned first.
+ * Layout zones, top to bottom:
+ *  1. Search field pinned in the top bar, with a live result count.
+ *  2. Horizontal region filter (全部 / 亚洲 / … / 贵金属 / 数字货币).
+ *  3. Sticky region headers over the rows, with 常用 pinned first.
  *
  * Only codes present in the active rate table are offered — listing a currency
  * the app cannot convert would be a dead end.
@@ -78,6 +78,7 @@ fun CurrencyPickerScreen(
     availableCodes: Set<String>,
     favorites: List<String>,
     rateOf: (String) -> Double?,
+    provenanceOf: (String) -> Provenance,
     onSelect: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onBack: () -> Unit,
@@ -87,9 +88,8 @@ fun CurrencyPickerScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
 
-    // Universe of selectable currencies, restricted to what the API actually
-    // returned. Unknown codes still surface so a newly added currency is usable
-    // before its metadata ships.
+    // Universe restricted to what the providers actually returned. Unknown codes
+    // still surface so a newly added asset is usable before its metadata ships.
     val universe = remember(availableCodes) {
         if (availableCodes.isEmpty()) {
             Currencies.all
@@ -115,8 +115,8 @@ fun CurrencyPickerScreen(
         }
     }
 
-    // 常用 is only meaningful when browsing; a search should show pure results.
-    val pinned by remember(matches, favorites, trimmedQuery, regionFilter) {
+    // 常用 is only meaningful while browsing; a search shows pure results.
+    val pinned by remember(universe, favorites, trimmedQuery, regionFilter) {
         derivedStateOf {
             if (trimmedQuery.isNotEmpty() || regionFilter != null) {
                 emptyList()
@@ -134,9 +134,7 @@ fun CurrencyPickerScreen(
             } else {
                 matches.groupBy { it.region }
                     .toSortedMap(compareBy { it.ordinal })
-                    .map { (region, list) ->
-                        region.labelZh to list.sortedBy { it.code }
-                    }
+                    .map { (region, list) -> region.labelZh to list.sortedBy { it.code } }
             }
         }
     }
@@ -159,13 +157,14 @@ fun CurrencyPickerScreen(
                 SearchField(
                     query = query,
                     resultCount = matches.size,
+                    totalCount = universe.size,
                     onQueryChange = { query = it },
                     onClear = { query = "" },
                     onSearch = { keyboard?.hide() },
                 )
                 RegionFilterRow(
                     selected = regionFilter,
-                    enabled = trimmedQuery.isEmpty(),
+                    visible = trimmedQuery.isEmpty(),
                     onSelect = { regionFilter = it },
                 )
             }
@@ -186,8 +185,9 @@ fun CurrencyPickerScreen(
                         selected = currency.code == selectedCode,
                         baseCode = baseCode,
                         rate = rateOf(currency.code),
+                        provenance = provenanceOf(currency.code),
                         isFavorite = true,
-                        query = "",
+                        searching = false,
                         onClick = { onSelect(currency.code) },
                         onToggleFavorite = { onToggleFavorite(currency.code) },
                     )
@@ -208,8 +208,9 @@ fun CurrencyPickerScreen(
                         selected = currency.code == selectedCode,
                         baseCode = baseCode,
                         rate = rateOf(currency.code),
+                        provenance = provenanceOf(currency.code),
                         isFavorite = currency.code in favorites,
-                        query = trimmedQuery,
+                        searching = trimmedQuery.isNotEmpty(),
                         onClick = { onSelect(currency.code) },
                         onToggleFavorite = { onToggleFavorite(currency.code) },
                     )
@@ -220,9 +221,8 @@ fun CurrencyPickerScreen(
 }
 
 /**
- * Ranks results so an exact code match wins, then prefix matches on the code,
- * then everything else alphabetically. Without this, searching "US" would bury
- * USD under AUD/BUS-style substring hits.
+ * Ranks results so an exact code match wins, then prefix matches, then
+ * substring hits. Without this, searching "US" would bury USD under AUD.
  */
 private fun searchRanking(query: String): Comparator<Currency> =
     if (query.isEmpty()) {
@@ -234,7 +234,8 @@ private fun searchRanking(query: String): Comparator<Currency> =
                 c.code.lowercase().startsWith(query) -> 1
                 c.nameZh.startsWith(query) -> 2
                 c.name.lowercase().startsWith(query) -> 3
-                else -> 4
+                c.nameZh.contains(query) -> 4
+                else -> 5
             }
         }.thenBy { it.code }
     }
@@ -244,6 +245,7 @@ private fun searchRanking(query: String): Comparator<Currency> =
 private fun SearchField(
     query: String,
     resultCount: Int,
+    totalCount: Int,
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
     onSearch: () -> Unit,
@@ -254,7 +256,7 @@ private fun SearchField(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        placeholder = { Text("搜索代码、中文名或英文名") },
+        placeholder = { Text("搜索 $totalCount 种货币 · 代码或名称") },
         leadingIcon = { Icon(AppIcons.Search, contentDescription = null) },
         trailingIcon = {
             AnimatedVisibility(
@@ -292,13 +294,13 @@ private fun SearchField(
 @Composable
 private fun RegionFilterRow(
     selected: Region?,
-    enabled: Boolean,
+    visible: Boolean,
     onSelect: (Region?) -> Unit,
 ) {
     // Hidden during search: mixing a region filter into ranked results makes the
-    // result count confusing.
+    // result count misleading.
     AnimatedVisibility(
-        visible = enabled,
+        visible = visible,
         enter = fadeIn(tween(160)),
         exit = fadeOut(tween(120)),
     ) {
@@ -320,7 +322,6 @@ private fun RegionFilterRow(
                     onClick = { onSelect(if (selected == region) null else region) },
                     label = { Text(region.labelZh) },
                     shape = MaterialTheme.shapes.small,
-                    colors = FilterChipDefaults.filterChipColors(),
                 )
             }
         }
@@ -375,7 +376,7 @@ private fun EmptyState(query: String) {
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "可以试试货币代码（USD）、中文名（美元）或英文名（Dollar）",
+            text = "可以试试代码（USD、BTC）、中文名（美元、黄金）或英文名（Dollar）",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -388,8 +389,9 @@ private fun CurrencyRow(
     selected: Boolean,
     baseCode: String,
     rate: Double?,
+    provenance: Provenance,
     isFavorite: Boolean,
-    query: String,
+    searching: Boolean,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
@@ -442,7 +444,7 @@ private fun CurrencyRow(
                 )
                 // Surfacing the English name only while searching keeps the
                 // browse list to two lines but still explains why a row matched.
-                if (query.isNotEmpty() && currency.name != currency.nameZh) {
+                if (searching && currency.name != currency.nameZh) {
                     Text(
                         text = currency.name,
                         style = MaterialTheme.typography.bodySmall,
@@ -465,7 +467,12 @@ private fun CurrencyRow(
                         maxLines = 1,
                     )
                     Text(
-                        text = "1 $baseCode",
+                        text = when (provenance) {
+                            Provenance.Ecb -> "ECB · 1 $baseCode"
+                            Provenance.Metal -> "现货 · 1 $baseCode"
+                            Provenance.Crypto -> "实时 · 1 $baseCode"
+                            Provenance.Aggregate -> "1 $baseCode"
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = scheme.onSurfaceVariant,
                         maxLines = 1,
