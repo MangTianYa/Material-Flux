@@ -356,6 +356,8 @@ private fun RateLine(state: ConverterUiState) {
             append(
                 when (state.provenance) {
                     Provenance.Ecb -> "欧洲央行参考汇率"
+                    Provenance.Metal -> "贵金属现货价 · 每金衡盎司"
+                    Provenance.Crypto -> "数字资产实时价"
                     Provenance.Aggregate -> "综合市场汇率"
                 },
             )
@@ -382,7 +384,12 @@ private fun RateLine(state: ConverterUiState) {
 private fun ProvenanceBadge(provenance: Provenance) {
     val scheme = MaterialTheme.colorScheme
     val (label, container, content) = when (provenance) {
-        Provenance.Ecb -> Triple("ECB 基准", scheme.primaryContainer, scheme.onPrimaryContainer)
+        Provenance.Ecb ->
+            Triple("ECB 基准", scheme.primaryContainer, scheme.onPrimaryContainer)
+        Provenance.Metal ->
+            Triple("贵金属现货", scheme.tertiaryContainer, scheme.onTertiaryContainer)
+        Provenance.Crypto ->
+            Triple("数字资产", scheme.tertiaryContainer, scheme.onTertiaryContainer)
         Provenance.Aggregate ->
             Triple("综合报价", scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
     }

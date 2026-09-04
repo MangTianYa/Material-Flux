@@ -17,6 +17,12 @@ enum class Provenance {
     /** Derived from the ECB daily reference feed. Matches Google/XE exactly. */
     Ecb,
 
+    /** Spot price from a precious-metals provider. */
+    Metal,
+
+    /** Digital-asset spot price from Coinbase. */
+    Crypto,
+
     /** open.er-api.com aggregate. Used for currencies the ECB does not publish. */
     Aggregate,
 }
@@ -24,14 +30,16 @@ enum class Provenance {
 /**
  * A USD-based rate table.
  *
- * [ecbCodes] records which quotes came from the ECB feed so the UI can tell the
- * user which numbers are benchmark-grade and which are aggregate estimates.
+ * The per-source code sets let the UI tell the user which numbers are
+ * benchmark-grade and which are aggregate estimates or volatile spot prices.
  */
 data class RateTable(
     val rates: Map<String, Double>,
     val updatedAtMillis: Long,
     val ecbDate: String = "",
     val ecbCodes: Set<String> = emptySet(),
+    val metalCodes: Set<String> = emptySet(),
+    val cryptoCodes: Set<String> = emptySet(),
 ) {
     val base: String get() = "USD"
 
@@ -49,12 +57,23 @@ data class RateTable(
         return t / f
     }
 
+    /** Provenance of a single leg. */
+    fun provenanceOf(code: String): Provenance = when (code) {
+        in ecbCodes -> Provenance.Ecb
+        in metalCodes -> Provenance.Metal
+        in cryptoCodes -> Provenance.Crypto
+        else -> Provenance.Aggregate
+    }
+
     /**
-     * A pair is ECB-grade only when both legs are, since a cross rate inherits
-     * the weaker of its two inputs.
+     * A pair inherits the weaker of its two legs, since a cross rate cannot be
+     * more trustworthy than its inputs. Ordering follows the enum declaration.
      */
-    fun provenanceOf(from: String, to: String): Provenance =
-        if (from in ecbCodes && to in ecbCodes) Provenance.Ecb else Provenance.Aggregate
+    fun provenanceOf(from: String, to: String): Provenance {
+        val a = provenanceOf(from)
+        val b = provenanceOf(to)
+        return if (a.ordinal >= b.ordinal) a else b
+    }
 
     companion object {
         /** Nothing fetched yet. The UI renders a loading state for this. */

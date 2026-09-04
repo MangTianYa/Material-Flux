@@ -3,6 +3,7 @@ package com.anomaly.currency
 import com.anomaly.currency.data.Currencies
 import com.anomaly.currency.data.Provenance
 import com.anomaly.currency.data.RateTable
+import com.anomaly.currency.data.Region
 import com.anomaly.currency.util.Money
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,10 +22,14 @@ class ConversionTest {
             "JPY" to 181.21 / 1.1615,
             "EUR" to 1.0 / 1.1615,
             "XYZ" to 12.5,
+            "XAU" to 1.0 / 4473.600098,
+            "BTC" to 0.0000123643690537,
         ),
         updatedAtMillis = 0L,
         ecbDate = "2026-09-03",
         ecbCodes = setOf("USD", "CNY", "JPY", "EUR"),
+        metalCodes = setOf("XAU"),
+        cryptoCodes = setOf("BTC"),
     )
 
     @Test
@@ -61,12 +66,37 @@ class ConversionTest {
     // ── Provenance ────────────────────────────────────────────────────────────
 
     @Test
-    fun `pair is ECB grade only when both legs are`() {
+    fun `single leg reports its own source`() {
+        assertEquals(Provenance.Ecb, table.provenanceOf("CNY"))
+        assertEquals(Provenance.Metal, table.provenanceOf("XAU"))
+        assertEquals(Provenance.Crypto, table.provenanceOf("BTC"))
+        assertEquals(Provenance.Aggregate, table.provenanceOf("XYZ"))
+        // Codes absent from every set degrade rather than throw.
+        assertEquals(Provenance.Aggregate, table.provenanceOf("ZZZ"))
+    }
+
+    @Test
+    fun `pair inherits the weaker of its two legs`() {
         assertEquals(Provenance.Ecb, table.provenanceOf("USD", "CNY"))
         assertEquals(Provenance.Ecb, table.provenanceOf("CNY", "JPY"))
-        // XYZ came from the aggregate source, so the cross rate degrades.
-        assertEquals(Provenance.Aggregate, table.provenanceOf("USD", "XYZ"))
+        // A metal or crypto leg outranks ECB in the degradation order.
+        assertEquals(Provenance.Metal, table.provenanceOf("USD", "XAU"))
+        assertEquals(Provenance.Metal, table.provenanceOf("XAU", "CNY"))
+        assertEquals(Provenance.Crypto, table.provenanceOf("USD", "BTC"))
+        // Aggregate is the weakest, so it wins against anything.
         assertEquals(Provenance.Aggregate, table.provenanceOf("XYZ", "CNY"))
+        assertEquals(Provenance.Aggregate, table.provenanceOf("BTC", "XYZ"))
+    }
+
+    @Test
+    fun `metals and crypto participate in cross rates`() {
+        // 1 BTC in CNY: both legs present, so the quotient is defined.
+        val btcCny = table.rate("BTC", "CNY")
+        assertNotNull(btcCny)
+        assertTrue("expected a large number, got $btcCny", btcCny!! > 100_000.0)
+
+        // 1 oz gold in USD should be the provider's spot price.
+        assertEquals(4473.600098, table.rate("XAU", "USD")!!, 1e-6)
     }
 
     // ── Rate formatting: six decimals ─────────────────────────────────────────
@@ -143,10 +173,22 @@ class ConversionTest {
     // ── Currency metadata ─────────────────────────────────────────────────────
 
     @Test
-    fun `currency list covers the full API set without duplicates`() {
+    fun `currency list covers every provider code without duplicates`() {
         val codes = Currencies.all.map { it.code }
-        assertEquals(166, codes.size)
-        assertEquals(166, codes.toSet().size)
+        // 166 fiat + 4 precious metals + 20 digital assets
+        assertEquals(190, codes.size)
+        assertEquals(190, codes.toSet().size)
+    }
+
+    @Test
+    fun `metals and crypto are grouped into their own regions`() {
+        val metals = Currencies.all.filter { it.region == Region.Metal }.map { it.code }
+        assertEquals(listOf("XAU", "XAG", "XPT", "XPD").sorted(), metals.sorted())
+
+        val crypto = Currencies.all.filter { it.region == Region.Crypto }
+        assertEquals(20, crypto.size)
+        // Volatile assets need more precision than fiat's two decimals.
+        assertTrue(crypto.all { it.decimals >= 4 })
     }
 
     @Test

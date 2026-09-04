@@ -11,14 +11,17 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
- * Builds the rate table from two sources and merges them by accuracy.
+ * Builds the rate table from four sources, merged by accuracy.
  *
  * The ECB daily reference feed is the benchmark Google and XE display, but it
- * only covers ~30 currencies. open.er-api.com covers 166 but its CNY quote sits
- * ~0.24% away from the ECB cross rate — measured, not assumed — because it
- * blends onshore and offshore Renminbi.
+ * only covers ~30 currencies. open.er-api.com covers 166 fiat currencies but its
+ * CNY quote sits ~0.24% away from the ECB cross rate — measured, not assumed —
+ * because it blends onshore and offshore Renminbi.
  *
- * So: ECB wins wherever it publishes, aggregate fills the long tail.
+ * Precious metals and digital assets come from dedicated providers since no
+ * fiat feed quotes them reliably.
+ *
+ * Merge order: aggregate -> crypto -> metals -> ECB. ECB always wins.
  */
 internal class RateApi(
     private val json: Json,
@@ -26,20 +29,25 @@ internal class RateApi(
 ) {
 
     private val ecb = EcbApi(client)
+    private val metals = MetalsApi(json, client)
+    private val crypto = CryptoApi(json, client)
 
     /**
-     * Fetches both sources concurrently and merges them.
+     * Fetches every source concurrently and merges them.
      *
-     * Neither source is allowed to fail the whole refresh on its own: if the ECB
-     * feed is unreachable we still return the aggregate table, and vice versa.
-     * Only a total failure throws.
+     * Only a total failure of both fiat sources throws; metals and crypto are
+     * strictly additive, so their failure just means those rows are absent.
      */
     suspend fun latest(): RateTable = coroutineScope {
         val ecbDeferred = async { runCatching { ecb.daily() } }
         val aggregateDeferred = async { runCatching { aggregate() } }
+        val metalsDeferred = async { runCatching { metals.spot() }.getOrDefault(emptyMap()) }
+        val cryptoDeferred = async { runCatching { crypto.rates() }.getOrDefault(emptyMap()) }
 
         val ecbResult = ecbDeferred.await()
         val aggregateResult = aggregateDeferred.await()
+        val metalRates = metalsDeferred.await()
+        val cryptoRates = cryptoDeferred.await()
 
         val ecbSnapshot = ecbResult.getOrNull()
         val aggregate = aggregateResult.getOrNull()
@@ -47,13 +55,14 @@ internal class RateApi(
         if (ecbSnapshot == null && aggregate == null) {
             throw aggregateResult.exceptionOrNull()
                 ?: ecbResult.exceptionOrNull()
-                ?: IOException("both rate providers failed")
+                ?: IOException("both fiat rate providers failed")
         }
 
         val ecbUsd = ecbSnapshot?.toUsdBase() ?: emptyMap()
 
-        // Aggregate first, then overwrite with ECB so ECB always wins a conflict.
         val merged = LinkedHashMap<String, Double>(aggregate?.rates.orEmpty())
+        merged.putAll(cryptoRates)
+        merged.putAll(metalRates)
         merged.putAll(ecbUsd)
         merged["USD"] = 1.0
 
@@ -64,15 +73,17 @@ internal class RateApi(
                 ?: System.currentTimeMillis(),
             ecbDate = ecbSnapshot?.date.orEmpty(),
             ecbCodes = ecbUsd.keys,
+            metalCodes = metalRates.keys,
+            cryptoCodes = cryptoRates.keys,
         )
     }
 
-    /** open.er-api.com — keyless, 166 currencies, refreshed daily. */
+    /** open.er-api.com — keyless, 166 fiat currencies, refreshed daily. */
     private suspend fun aggregate(): AggregateSnapshot = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(AGGREGATE_URL)
             .header("Accept", "application/json")
-            .header("User-Agent", "CurrencyM3/1.0 (Android)")
+            .header("User-Agent", "MaterialFlux/1.2 (Android)")
             .build()
 
         client.newCall(request).execute().use { response ->

@@ -13,6 +13,8 @@ enum class Region(val labelZh: String) {
     MiddleEast("中东"),
     Africa("非洲"),
     Oceania("大洋洲"),
+    Metal("贵金属"),
+    Crypto("数字货币"),
     Other("其他"),
 }
 
@@ -242,6 +244,34 @@ object Currencies {
         c("VUV", "Vanuatu Vatu", "瓦努阿图瓦图", "VT", "VU", Region.Oceania, 0),
         c("WST", "Samoan Tālā", "萨摩亚塔拉", "WS$", "WS", Region.Oceania),
         c("XPF", "CFP Franc", "太平洋法郎", "₣", "PF", Region.Oceania, 0),
+
+        // ── Precious metals (per troy ounce) ──────────────────────────────────
+        c("XAU", "Gold", "黄金", "Au", "XX", Region.Metal, 6),
+        c("XAG", "Silver", "白银", "Ag", "XX", Region.Metal, 6),
+        c("XPT", "Platinum", "铂金", "Pt", "XX", Region.Metal, 6),
+        c("XPD", "Palladium", "钯金", "Pd", "XX", Region.Metal, 6),
+
+        // ── Digital assets ────────────────────────────────────────────────────
+        c("BTC", "Bitcoin", "比特币", "₿", "XX", Region.Crypto, 8),
+        c("ETH", "Ethereum", "以太坊", "Ξ", "XX", Region.Crypto, 8),
+        c("USDT", "Tether", "泰达币", "₮", "XX", Region.Crypto, 4),
+        c("USDC", "USD Coin", "USD Coin", "$", "XX", Region.Crypto, 4),
+        c("XRP", "XRP", "瑞波币", "XRP", "XX", Region.Crypto, 6),
+        c("SOL", "Solana", "索拉纳", "SOL", "XX", Region.Crypto, 6),
+        c("DOGE", "Dogecoin", "狗狗币", "Ð", "XX", Region.Crypto, 6),
+        c("ADA", "Cardano", "艾达币", "ADA", "XX", Region.Crypto, 6),
+        c("TRX", "TRON", "波场", "TRX", "XX", Region.Crypto, 6),
+        c("LINK", "Chainlink", "Chainlink", "LINK", "XX", Region.Crypto, 6),
+        c("AVAX", "Avalanche", "雪崩", "AVAX", "XX", Region.Crypto, 6),
+        c("DOT", "Polkadot", "波卡", "DOT", "XX", Region.Crypto, 6),
+        c("BCH", "Bitcoin Cash", "比特币现金", "BCH", "XX", Region.Crypto, 8),
+        c("LTC", "Litecoin", "莱特币", "Ł", "XX", Region.Crypto, 8),
+        c("XLM", "Stellar Lumens", "恒星币", "XLM", "XX", Region.Crypto, 6),
+        c("ATOM", "Cosmos", "Cosmos", "ATOM", "XX", Region.Crypto, 6),
+        c("UNI", "Uniswap", "Uniswap", "UNI", "XX", Region.Crypto, 6),
+        c("ETC", "Ethereum Classic", "以太经典", "ETC", "XX", Region.Crypto, 6),
+        c("FIL", "Filecoin", "Filecoin", "FIL", "XX", Region.Crypto, 6),
+        c("AAVE", "Aave", "Aave", "AAVE", "XX", Region.Crypto, 6),
 
         // ── Other ─────────────────────────────────────────────────────────────
         c("XDR", "IMF Special Drawing Rights", "特别提款权", "SDR", "XX", Region.Other, 4),

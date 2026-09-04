@@ -79,6 +79,7 @@ fun CurrencyApp(
                     availableCodes = state.table.rates.keys,
                     favorites = state.favorites,
                     rateOf = { code -> state.table.rate(base, code) },
+                    provenanceOf = { code -> state.table.provenanceOf(code) },
                     onSelect = { code ->
                         if (isFrom) viewModel.selectFrom(code) else viewModel.selectTo(code)
                         destination = Destination.Converter
