@@ -152,4 +152,8 @@ certutil -encodehex -f release.jks out.txt 0x40000002   # Windows
 
 ## 许可
 
-[VibeCoded AI-Slop License v1.0](LICENSE)
+[GPL-3.0-or-later](LICENSE)
+
+选择 GPL 而非 MIT 是有意的：任何人可以自由使用、修改和分发本项目，但基于它的衍生作品同样必须开源。这样能防止有人把它闭源打包、加上广告后上架应用商店。
+
+代码主要由 AI 生成，相关坦白见 [DISCLAIMER.md](DISCLAIMER.md)。该文档仅为态度陈述，不具法律效力。
