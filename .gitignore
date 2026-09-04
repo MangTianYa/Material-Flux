@@ -37,3 +37,13 @@ dist/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ── SSH / 私钥材料:绝不提交 ────────────────────────────────────────────────────
+.ssh/
+sshkey*
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.pem
+*.ppk
+known_hosts
