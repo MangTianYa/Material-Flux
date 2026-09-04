@@ -1,9 +1,38 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+/**
+ * Release signing credentials.
+ *
+ * Read from `keystore.properties` (git-ignored) or the environment, never
+ * hard-coded — this file is committed to a public repository. When no
+ * credentials are present the release build falls back to the debug key so a
+ * fresh clone still builds; such an APK is not distributable.
+ */
+val keystoreProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun secret(key: String, env: String): String? =
+    keystoreProps.getProperty(key) ?: System.getenv(env)
+
+val releaseStorePassword = secret("storePassword", "CURRENCY_STORE_PASSWORD")
+val releaseKeyAlias = secret("keyAlias", "CURRENCY_KEY_ALIAS")
+val releaseKeyPassword = secret("keyPassword", "CURRENCY_KEY_PASSWORD")
+val releaseStoreFile = rootProject.file(
+    secret("storeFile", "CURRENCY_STORE_FILE") ?: "keystore/dev.jks",
+)
+val hasReleaseSigning = releaseStoreFile.exists() &&
+    releaseStorePassword != null &&
+    releaseKeyAlias != null &&
+    releaseKeyPassword != null
 
 android {
     namespace = "com.anomaly.currency"
@@ -14,17 +43,19 @@ android {
         applicationId = "com.anomaly.currency"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
         vectorDrawables.useSupportLibrary = true
     }
 
     signingConfigs {
-        create("dev") {
-            storeFile = rootProject.file("keystore/dev.jks")
-            storePassword = "currencym3"
-            keyAlias = "dev"
-            keyPassword = "currencym3"
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
@@ -39,7 +70,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("dev")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "No release signing credentials found; falling back to the " +
+                        "debug key. See README for keystore.properties setup.",
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 

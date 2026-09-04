@@ -1,6 +1,8 @@
-# 汇率兑换 · CurrencyM3
+# Material Flux · 汇率兑换
 
 一款遵循 Google Material 3 设计规范的 Android 汇率换算应用，使用 Jetpack Compose 构建。
+
+当前版本 1.1.0（versionCode 2）。
 
 ## 特性
 
@@ -45,16 +47,29 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 
 Release 构建启用 R8 代码压缩与资源压缩，产物约 1.6 MB。
 
-签名配置引用 `keystore/dev.jks`，该目录已被 `.gitignore` 排除。首次构建 release 前需自行生成：
+### 签名
+
+签名口令不写入版本库。在项目根目录创建 `keystore.properties`（已被 `.gitignore` 排除）：
+
+```properties
+storeFile=keystore/dev.jks
+storePassword=<your-password>
+keyAlias=<your-alias>
+keyPassword=<your-password>
+```
+
+或改用环境变量 `CURRENCY_STORE_FILE` / `CURRENCY_STORE_PASSWORD` / `CURRENCY_KEY_ALIAS` / `CURRENCY_KEY_PASSWORD`。
+
+生成 keystore：
 
 ```bash
 keytool -genkeypair -keystore keystore/dev.jks -storetype JKS \
   -keyalg RSA -keysize 2048 -validity 10950 -alias dev \
   -storepass <your-password> -keypass <your-password> \
-  -dname "CN=CurrencyM3, O=Dev, C=CN"
+  -dname "CN=Material Flux, O=Dev, C=CN"
 ```
 
-并在 `app/build.gradle.kts` 的 `signingConfigs` 中填入对应口令，或改为从环境变量读取。
+未提供任何凭证时，release 构建会回退到 debug 签名并输出警告，以保证新克隆的仓库仍可构建——此类产物不可用于分发。
 
 ## 测试
 
