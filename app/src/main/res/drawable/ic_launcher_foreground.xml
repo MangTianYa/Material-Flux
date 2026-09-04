@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Two arrows exchanging, drawn inside the 72dp adaptive-icon safe zone. -->
+    <group android:translateX="18" android:translateY="18">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M46,49.01V28h-6v21.01h-9L43,61l12,-11.99h-9z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M29,11L17,22.99h9V44h6V22.99h9L29,11z" />
+    </group>
+</vector>

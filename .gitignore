@@ -1,0 +1,39 @@
+# ── Gradle ────────────────────────────────────────────────────────────────────
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# ── Android Studio / IntelliJ ─────────────────────────────────────────────────
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ── Signing material: never commit ────────────────────────────────────────────
+keystore/
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+*.env
+apikeys.properties
+secrets.properties
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ── Toolchain downloaded into the workspace ───────────────────────────────────
+.toolchain/
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

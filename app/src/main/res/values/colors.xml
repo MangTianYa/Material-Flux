@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cold-start window background. Must track the light/dark scheme surface
+         so the first frame does not flash white in dark mode. -->
+    <color name="window_background">#FFF7F9FF</color>
+    <color name="ic_launcher_background">#FF00639B</color>
+</resources>
