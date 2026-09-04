@@ -62,22 +62,25 @@ Release 构建启用 R8 代码压缩与资源压缩，产物约 1.6 MB。
 签名口令不写入版本库。在项目根目录创建 `keystore.properties`（已被 `.gitignore` 排除）：
 
 ```properties
-storeFile=keystore/dev.jks
+storeFile=keystore/release.jks
+storeType=PKCS12
 storePassword=<your-password>
 keyAlias=<your-alias>
 keyPassword=<your-password>
 ```
 
-或改用环境变量 `CURRENCY_STORE_FILE` / `CURRENCY_STORE_PASSWORD` / `CURRENCY_KEY_ALIAS` / `CURRENCY_KEY_PASSWORD`。
+或改用环境变量 `CURRENCY_STORE_FILE` / `CURRENCY_STORE_TYPE` / `CURRENCY_STORE_PASSWORD` / `CURRENCY_KEY_ALIAS` / `CURRENCY_KEY_PASSWORD`。
 
 生成 keystore：
 
 ```bash
-keytool -genkeypair -keystore keystore/dev.jks -storetype JKS \
-  -keyalg RSA -keysize 2048 -validity 10950 -alias dev \
+keytool -genkeypair -keystore keystore/release.jks -storetype PKCS12 \
+  -keyalg RSA -keysize 4096 -validity 36500 -alias materialflux \
   -storepass <your-password> -keypass <your-password> \
-  -dname "CN=Material Flux, O=Dev, C=CN"
+  -dname "CN=Material Flux, O=<your-org>, C=CN"
 ```
+
+Release 使用 APK Signature Scheme v2 + v3（v1 仅 API 24 以下需要，而 minSdk 即为 24）。
 
 未提供任何凭证时，release 构建会回退到 debug 签名并输出警告，以保证新克隆的仓库仍可构建——此类产物不可用于分发。
 

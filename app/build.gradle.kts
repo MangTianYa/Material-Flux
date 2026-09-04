@@ -26,8 +26,9 @@ fun secret(key: String, env: String): String? =
 val releaseStorePassword = secret("storePassword", "CURRENCY_STORE_PASSWORD")
 val releaseKeyAlias = secret("keyAlias", "CURRENCY_KEY_ALIAS")
 val releaseKeyPassword = secret("keyPassword", "CURRENCY_KEY_PASSWORD")
+val releaseStoreType = secret("storeType", "CURRENCY_STORE_TYPE") ?: "PKCS12"
 val releaseStoreFile = rootProject.file(
-    secret("storeFile", "CURRENCY_STORE_FILE") ?: "keystore/dev.jks",
+    secret("storeFile", "CURRENCY_STORE_FILE") ?: "keystore/release.jks",
 )
 val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseStorePassword != null &&
@@ -52,9 +53,17 @@ android {
         if (hasReleaseSigning) {
             create("release") {
                 storeFile = releaseStoreFile
+                storeType = releaseStoreType
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
+
+                // v1 is only needed below API 24, which is our minSdk floor.
+                // v3 carries the rotation proof, so enable it explicitly rather
+                // than relying on the plugin default.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }

@@ -50,18 +50,25 @@ jobs:
       # otherwise the build falls back to the debug key with a warning, so a
       # fork without secrets still produces a working APK.
       - name: Decode release keystore
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::notice::No signing secrets; release APK will use the debug key."
+            exit 0
+          fi
           mkdir -p keystore
-          echo "$KEYSTORE_BASE64" | base64 -d > keystore/release.jks
-          cat > keystore.properties <<EOF
-          storeFile=keystore/release.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          EOF
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > keystore/release.jks
+          {
+            echo "storeFile=keystore/release.jks"
+            echo "storeType=PKCS12"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
 
       - name: Assemble debug and release
         run: ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
